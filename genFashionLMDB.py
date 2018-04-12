@@ -57,7 +57,7 @@ def writeLMDB(dataset, lmdb_path, validation=0):
         meta_data[clidx][0] = data[idx]['isValidation']
         meta_data[clidx][1] = data[idx]['numOtherPeople']
         meta_data[clidx][2] = data[idx]['people_index']
-        annolist_index_binary = float2bytes(data[idx]['annotlist_index'])
+        annolist_index_binary = float2bytes(data[idx]['annolist_index'])
         for i in range(len(annolist_index_binary)): # 3,4,5,6
             meta_data[clidx][3+i] = ord(annolist_index_binary[i])
         count_binary = float2bytes(float(writeCount)) # note it's writecount instead of count!
