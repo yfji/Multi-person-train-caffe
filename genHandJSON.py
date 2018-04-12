@@ -16,8 +16,8 @@ net_input_side=256
 def genHandJson():
     dataset_root='/data/xiaobing.wang/pingjun.li/yfji/hand_labels_synth/'
     sub_dirs=os.listdir(dataset_root)
-    sub_dirs=[d for d in sub_dirs if op.isdir(op.join(dataset_root,d))]
-    
+    #sub_dirs=[op.join(dataset_root, 'synth2'), op.join(dataset_root, 'synth3')]
+    sub_dirs=[op.join(dataset_root, d) for d in sub_dirs if os.path.isdir(d)]
     data=[]
     for d in sub_dirs:
         dir_path=op.join(dataset_root,d)
@@ -44,6 +44,7 @@ def genHandJson():
             image=PI.open(entry['img_paths'])
             entry['crop_x']=0
             entry['crop_y']=0
+            entry['crop']=0
         
             entry['img_height']=image.size[1]
             entry['img_width']=image.size[0]
@@ -53,6 +54,8 @@ def genHandJson():
             
             ltx=1e4;lty=1e4;rbx=0;rby=0
             for pt in hand_pts: #21*3
+                if int(pt[2])==0:
+                    continue
                 ltx=min(ltx,pt[0])
                 lty=min(lty,pt[1])
                 rbx=max(rbx,pt[0])
@@ -67,23 +70,25 @@ def genHandJson():
             
             if 1.0*im_w/hand_w>4:
                 entry['crop_x']=max(0,hand_center[0]-crop_side)
+                entry['crop']=1
             if 1.0*im_h/hand_h>4:
                 entry['crop_y']=max(0,hand_center[1]-crop_side)
-            if entry['crop_x']!=0 or entry['crop_y']!=0:
-                crop_h=min(im_w,im_h,crop_side)
-                crop_w=min(im_w,im_h,crop_side)
+                entry['crop']=1
+            if entry['crop']==1:
+                crop_h=min(im_w,im_h,crop_side*2)
+                crop_w=min(im_w,im_h,crop_side*2)
                 entry['img_height']=min(im_h-entry['crop_y'], crop_h)
                 entry['img_width']=min(im_w-entry['crop_x'], crop_w)
             entry['scale_provided']=1.0*entry['img_height']/net_input_side
 
             entry['objpos']=[hand_center[0]-entry['crop_x'],hand_center[1]-entry['crop_y']]
             joint_self=np.asarray(hand_pts)
-            joint_self[:,0]-=entry['crop_x']
-            joint_self[:,1]-=entry['crop_y']
+            joint_self[:,0]=np.maximum(0,joint_self[:,0]-entry['crop_x'])
+            joint_self[:,1]=np.maximum(0,joint_self[:,1]-entry['crop_y'])
             joint_self=joint_self.transpose().tolist()
             entry['joint_self']=joint_self
             data.append(entry)
-    with open('hand_label.json','w') as f:
+    with open('hand_label_crop.json','w') as f:
         label_data=dict(root=data)
         f.write(json.dumps(label_data))
     print('done')
