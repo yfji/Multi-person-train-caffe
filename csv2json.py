@@ -15,7 +15,7 @@ import numpy as np
 
 images_root=op.join(os.getcwd(),'../')
 annot_dir=os.getcwd()
-net_input_side=256
+net_input_side=368
 
 def parse_json():
     with open(op.join(annot_dir,'train.csv'),'r') as f:
@@ -68,7 +68,7 @@ def csv2json():
             item['isValidation']=0
             item['numOtherPeople']=0
             item['people_index']=0
-            item['annot_list']=0
+            item['annolist_index']=0
             ltx=1e4;lty=1e4;rbx=0;rby=0
 
             joint_self=[]   #24*3
@@ -88,7 +88,7 @@ def csv2json():
             center=[0.5*(ltx+rbx),0.5*(lty+rby)]
             item['objpos']=center
             item['joint_self']=np.asarray(joint_self).transpose().tolist()   #3*24
-            item['scale_provided']=item['img_height']/net_input_side#align height
+            item['scale_provided']=1.0*item['img_height']/net_input_side#align height
             data.append(item)
     label=dict(root=data)
     with open('label_data.json','w') as f:
