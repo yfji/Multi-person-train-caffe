@@ -372,6 +372,14 @@ template<typename Dtype> CPMDataTransformer<Dtype>::CPMDataTransformer(const CPM
     has_mask=true;
   //only mask when np==56 or np==43
   is_table_set = false;
+  if(has_mask){
+    label_channels=2*(np+1);
+    label_start=np+1;
+  }
+  else{
+    label_channels=np+1;
+    label_start=0;
+  }  
   LOG(INFO) <<"Current dataset: "<<dataset<<endl;
 }
 
@@ -1276,8 +1284,8 @@ void CPMDataTransformer<Dtype>::generateLabelMap(Dtype* transformed_label, Mat& 
 
   for (int g_y = 0; g_y < grid_y; g_y++){
     for (int g_x = 0; g_x < grid_x; g_x++){
-      for (int i = np+1; i < 2*(np+1); i++){
-        if (mode == 6 && i == (2*np + 1))
+      for (int i = label_start; i < label_channels; i++){
+        if (mode == 6 && i == label_channels)
           continue;
         transformed_label[i*channelOffset + g_y*grid_x + g_x] = 0;
       }
@@ -1516,7 +1524,7 @@ void CPMDataTransformer<Dtype>::generateLabelMap(Dtype* transformed_label, Mat& 
   //visualize
   if(1 && param_.visualize()){
     Mat label_map;
-    for(int i = 0; i < 2*(np+1); i++){      
+    for(int i = 0; i < label_channels; i++){      
       label_map = Mat::zeros(grid_y, grid_x, CV_8UC1);
       //int MPI_index = MPI_to_ours[i];
       //Point2f center = meta.joint_self.joints[MPI_index];
