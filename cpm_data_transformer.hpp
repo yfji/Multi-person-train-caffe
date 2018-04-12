@@ -188,6 +188,8 @@ class CPMDataTransformer {
   int np_in_lmdb;
   int np_ours;
   int np;
+  int label_channels;
+  int label_start;
   /****add****/
   bool hand;
   bool upper_body;
