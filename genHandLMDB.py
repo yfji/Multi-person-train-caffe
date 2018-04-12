@@ -25,7 +25,7 @@ import numpy as np
 def writeLMDB(dataset, lmdb_path, validation=0):
     env = lmdb.open(lmdb_path, map_size=int(1e12))
     txn = env.begin(write=True)
-    with open('hand_label.json','r') as f:
+    with open('hand_label_crop.json','r') as f:
         label_data=json.load(f)
     data=label_data['root']
     numSamples=len(data)
@@ -119,7 +119,47 @@ def float2bytes(floats):
 	if type(floats) is int:
 		floats=[float(floats)]
 	return struct.pack('%sf' % len(floats), *floats)
- 
+
+def test_crop():
+    with open('hand_label_crop.json','r') as f:
+        label_data=json.load(f)
+    data=label_data['root']
+    numSamples=len(data)
+
+    random_order = np.random.permutation(numSamples).tolist()
+    min_side=128
+    for cnt in range(numSamples):
+        idx=random_order[cnt]
+        img_path=data[idx]['img_paths']
+        img_prefix=img_path[img_path.rfind('synth'):]
+        new_img_path=op.join('E:/yfji/benchmark/hand_labels_synth/hand_labels_synth', img_prefix)               
+        img = cv2.imread(new_img_path)
+        
+        crop_y=int(data[idx]['crop_y'])
+        crop_x=int(data[idx]['crop_x'])
+        img=img[crop_y:crop_y+int(data[idx]['img_height']),crop_x:crop_x+int(data[idx]['img_width']),:]
+        scale=1.0
+        hand_pts=np.asarray(data[idx]['joint_self']).transpose()
+#        hand_pts[:,0]-=crop_x
+#        hand_pts[:,1]-=crop_y
+        if img.shape[0]<min_side or img.shape[1]<min_side:
+            scale=1.0*min_side/min(img.shape[0],img.shape[1])
+            img=cv2.resize(img, (0,0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        hand_pts*=scale
+        for pt in hand_pts:
+            cv2.circle(img, (int(pt[0]),int(pt[1])), 2, (0,255,255), -1)
+        if data[idx]['crop']==1:
+            cv2.imshow('crop', img)
+            print(new_img_path)
+        else:
+            cv2.imshow('img',img)
+        if cv2.waitKey()==27:
+            break
+    cv2.destroyAllWindows()
+
+        
+        
 if __name__=='__main__':
 #    print(float2bytes([1.1,2.2]))
-	writeLMDB('HAND','lmdb')
+    writeLMDB('HAND','lmdb')
+#    test_crop()
