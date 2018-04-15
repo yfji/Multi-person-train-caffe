@@ -37,7 +37,7 @@ feature_maps[8][278,55]=1
 feature_maps[8][220,291]=1
 feature_maps[8][250,447]=1
 feature_maps[9][343,71]=1
-feature_maps[9][291,207]=1  #
+feature_maps[9][299,260]=1  #
 feature_maps[9][340,430]=1
 feature_maps[10][426,132]=1
 feature_maps[10][369,280]=1
@@ -61,14 +61,28 @@ pafs=[[[(139,48),(96,39)],[(116,313),(80,313)],[(138,436),(86,418)]],
       [[(138,96),(81,138)],[(122,358),(172,410)],[(122,513),(90,559)]],
       [[(81,138),(24,130)],[(172,410),(239,433)],[(90,559),(131,639)]],
       [[(139,48),(278,55)],[(116,313),(220,291)],[(138,436),(250,447)]],
-      [[(278,55),(343,71)],[(220,291),(291,207)],[(250,447),(340,430)]],
-      [[(343,71),(426,132)],[(291,207),(369,280)],[(340,430),(417,405)]],
-      [[(139,48),(243,121)],[(116,313),(220,346)],[(138,436),(251,512)]],
-      [[(243,121),(291,207)],[(220,346),(304,365)],[(251,512),(313,575)]],
-      [[(291,207),(368,201)],[(304,365),(394,378)],[(313,575),(400,516)]]
+      [[(278,55),(343,71)],[(220,291),(291,207)],[(250,447),(340,430)]],#8,9
+      [[(343,71),(426,132)],[(299,260),(369,280)],[(340,430),(417,405)]],#9,10
+      [[(139,48),(243,121)],[(116,313),(220,346)],[(138,436),(251,512)]],#1,11
+      [[(243,121),(291,207)],[(220,346),(304,365)],[(220,346),(313,575)]],#11,12
+      [[(291,207),(368,201)],[(304,365),(394,378)],[(313,575),(400,516)]]#12,13
         ]
 
-
+canvas=np.zeros((452,742,1),dtype=np.float32)
+for i in range(19-1):
+    fm=feature_maps[i]
+    ys=np.nonzero(fm)[0]
+    xs=np.nonzero(fm)[1]
+    assert(len(ys)==len(xs));
+    for c in range(len(ys)):
+        cv2.circle(canvas, (xs[c],ys[c]), 6, 255, -1)
+for i in range(len(pafs)):
+    fm_vecs=pafs[i]
+    for j in range(len(fm_vecs)):
+        vec=fm_vecs[j]
+        start=vec[0]
+        end=vec[1]
+        cv2.line(canvas, (start[1],start[0]), (end[1],end[0]), 255, 2)
         
 limbSeq=[[1,0],[1,2],[1,5],[2,3],[3,4],[5,6],[6,7],[1,8],[8,9],[9,10],[1,11],[11,12],[12,13],
          ]
@@ -101,7 +115,7 @@ for k in range(len(pafs)):
                 pair=[locA, locB]
                 for points in pafs[k]:
                     if locA[0]==points[0][0] and locA[1]==points[0][1] and locB[0]==points[1][0] and locB[1]==points[1][1]:
-                        print('found')
+#                        print('found')
                         connection_candidate.append([i,j])
     
     connection=np.zeros((0,4))
@@ -120,7 +134,7 @@ candidate = np.array([item for sublist in all_peaks for item in sublist])   #[i,
 for k in range(len(pafs)):
     partA_ids=connection_all[k][:,0]
     partB_ids=connection_all[k][:,1]    
-    indexA,indexB=np.asarray(limbSeq[k])-1
+    indexA,indexB=np.asarray(limbSeq[k])
     
     for i in range(len(connection_all[k])): #all limbs
         found=0
@@ -141,11 +155,13 @@ for k in range(len(pafs)):
             print("found = 2")
             membership = ((subset[j1]>=0).astype(int) + (subset[j2]>=0).astype(int))[:-2]
             if len(np.nonzero(membership == 2)[0]) == 0: #merge	#disjoint	#elbow is shared (co-terminal)
+                print('co-terminal')
                 subset[j1][:-2] += (subset[j2][:-2] + 1)
                 subset[j1][-2:] += subset[j2][-2:]
                 subset[j1][-2] += connection_all[k][i][2]
                 subset = np.delete(subset, j2, 0)
             else: # as like found == 1	#shoulder is shared (co-source)
+                print('co-source: (%d,%d)'%(indexA, indexB))
                 subset[j1][indexB] = partB_ids[i]
                 subset[j1][-1] += 1
                 subset[j1][-2] += candidate[partB_ids[i].astype(int), 2] + connection_all[k][i][2]
@@ -157,3 +173,7 @@ for k in range(len(pafs)):
             row[-1] = 2
             row[-2] = sum(candidate[connection_all[k][i,:2].astype(int), 2]) + connection_all[k][i][2]
             subset = np.vstack([subset, row])
+
+cv2.imshow('canvas', canvas)
+cv2.waitKey()
+cv2.destroyAllWindows()
