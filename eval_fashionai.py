@@ -14,8 +14,12 @@ import os
 import os.path as op
 import cv2
 
+use_bn=0
 caffe.set_mode_gpu()
-net=caffe.Net('fashion_deploy.prototxt','/home/yfji/benchmark/Keypoint/fashionAI_key_points_train_20180227/train/train_fashion/models/fashion_iter_90000.caffemodel',caffe.TEST)
+if use_bn:
+    net=caffe.Net('fashion_deploy_bn.prototxt','/home/yfji/benchmark/Keypoint/fashionAI_key_points_train_20180227/train/train_fashion/models_bn/fashion_iter_100000.caffemodel',caffe.TEST)
+else:
+    net=caffe.Net('fashion_deploy.prototxt','/home/yfji/benchmark/Keypoint/fashionAI_key_points_train_20180227/train/train_fashion/models/fashion_iter_180000.caffemodel',caffe.TEST)
 image_root=op.join(os.getcwd(), 'test')
 
 input_size=net.blobs[net.inputs[0]].data.shape[2]
@@ -55,10 +59,11 @@ def test_all():
             header=list(row)
             break
     print(header)
+    csv_name='pred_bn_iter_100000.csv' if use_bn else 'pred_iter_180000.csv'
     with open('test/test.csv', 'r') as f:
         reader=csv.reader(f)
-        with open('pred.csv','w') as pred_f:
-            pred_writer=csv.writer(pred_f)
+        with open(csv_name,'w') as pred_f:
+            pred_writer=csv.writer(pred_f, dialect='excel')
             for ix,row in enumerate(reader):
                 if ix==0:
                     pred_writer.writerow(header)
@@ -77,19 +82,21 @@ def test_all():
                 pad_image=(pad_image-128)/256
                 net.forward(**{net.inputs[0]:pad_image})
                 
-                output_blob=net.blobs[net.outputs[0]].data.squeeze()
+                output_blob=net.blobs[net.outputs[0]].data.squeeze().transpose(1,2,0)
+                output_blob=cv2.resize(output_blob,(0,0),fx=stride,fy=stride, interpolation=cv2.INTER_CUBIC)
                 keypoints=category_keypoints[category]
                 out_list=[]
                 for i in range(24):
                     if i in keypoints:
-                        heatmap=output_blob[i,:,:]
+                        heatmap=output_blob[:,:,i]
+                        heatmap=heatmap[:,:,np.newaxis]
                         peaks=find_peaks(heatmap)
                         if len(peaks)==0:
                             out_list.append('-1_-1_-1')
                         else:
                             peaks=sorted(peaks, key=lambda x:x[2], reverse=True)
                             peak=peaks[0]
-                            raw_peak=[peak[0]*stride*1.0/scale,peak[1]*stride*1.0/scale]
+                            raw_peak=[peak[0]*1.0/scale,peak[1]*1.0/scale]
                             out_list.append('%d_%d_1'%(int(raw_peak[0]),int(raw_peak[1])))
                     else:
                         out_list.append('-1_-1_-1')
@@ -102,11 +109,12 @@ def test_all():
     print('done')
     
 def test_one():
-    img_path='test/Images/outwear/0a946c5536340869ad6f69bb6e56e6f1.jpg'
+    category='trousers'
+    img_path='test/Images/%s/0aea271ad540cb9293bc76487ab2cffe.jpg'%category
     image=cv2.imread(img_path)
-     
-    category='outwear'
+    print('raw image shape',image.shape)
     scale=1.0*input_size/max(image.shape[0],image.shape[1])
+    print('scale: %f'%scale)
     raw_image=image.copy()
     image=cv2.resize(image, (0,0), fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC).astype(np.float32)
     print(image.shape) 
@@ -119,12 +127,14 @@ def test_one():
     print(pad_image.shape)
     net.forward(**{net.inputs[0]:pad_image})
     
-    output_blob=net.blobs[net.outputs[0]].data.squeeze()
+    output_blob=net.blobs[net.outputs[0]].data.squeeze().transpose(1,2,0)
+    output_blob=cv2.resize(output_blob,(0,0),fx=stride,fy=stride, interpolation=cv2.INTER_CUBIC)
+    print(output_blob.shape)
     keypoints=category_keypoints[category]
     out_list=[]
     for i in range(24):
         if i in keypoints:
-            heatmap=output_blob[i,:,:]
+            heatmap=output_blob[:,:,i]
             peaks=find_peaks(heatmap)
             print(peaks)
             if len(peaks)==0:
@@ -132,7 +142,7 @@ def test_one():
             else:
                 peaks=sorted(peaks, key=lambda x:x[2], reverse=True)
                 peak=peaks[0]
-                raw_peak=[peak[0]*stride*1.0/scale,peak[1]*stride*1.0/scale]
+                raw_peak=[peak[0]*1.0/scale,peak[1]*1.0/scale]
                 out_list.append('%d_%d_1'%(int(raw_peak[0]),int(raw_peak[1])))
                 cv2.circle(raw_image, (int(raw_peak[0]),int(raw_peak[1])), 6,(0,255,0),-1)
         else:
@@ -143,13 +153,33 @@ def test_one():
     cv2.waitKey()
     cv2.destroyAllWindows()
 
+def check_pred():
+    csv_name='pred_iter_180000.csv' if use_bn else 'pred.csv'
+    all_rows=[]
+    with open('pred_bn.csv', 'r') as f:
+        reader=csv.reader(f)
+        for ix,row in enumerate(reader):
+            if ix==0:
+                print(list(row))
+                continue
+            all_rows.append(list(row))
+    count=len(all_rows)
+    random_order=np.random.permutation(count)
+    for i in range(count):  
+        list_data=all_rows[random_order[i]]
+        image_path=op.join(image_root,list_data[0])
+        category=list_data[1]
+        keypoints=list_data[2:]            
+        image=cv2.imread(image_path)
+        for kpstr in keypoints:
+            kp=kpstr.split('_')
+            if kp[-1]==-1:
+                continue
+            cv2.circle(image, (int(kp[0]),int(kp[1])), 6,(0,255,0),-1)
+        cv2.imshow('cloth', image)
+        if cv2.waitKey()==27:
+            break
 
 if __name__=='__main__':
+#    check_pred()
     test_all()
-    
-        
-        
-    
-    
-    
-    
