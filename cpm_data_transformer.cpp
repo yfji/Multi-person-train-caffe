@@ -97,7 +97,8 @@ void CPMDataTransformer<Dtype>::ReadMetaData(MetaData& meta, const string& data,
       meta.joint_self.isVisible[i] = 3;
     }
     else{
-      meta.joint_self.isVisible[i] = (isVisible == 0) ? 0 : 1;
+      //meta.joint_self.isVisible[i] = (isVisible == 0) ? 0 : 1;
+      meta.joint_self.isVisible[i] = isVisible;
       if(meta.joint_self.joints[i].x < 0 || meta.joint_self.joints[i].y < 0 ||
          meta.joint_self.joints[i].x >= meta.img_size.width || meta.joint_self.joints[i].y >= meta.img_size.height){
         meta.joint_self.isVisible[i] = 2; // 2 means cropped, 0 means occluded by still on image, 1 means labeled and visible on image
@@ -126,7 +127,8 @@ void CPMDataTransformer<Dtype>::ReadMetaData(MetaData& meta, const string& data,
       meta.joint_others[p].joints[i] -= Point2f(1,1);
       float isVisible;
       DecodeFloats(data, offset3+(9+meta.numOtherPeople+3*p+2)*offset1+4*i, &isVisible, 1);
-      meta.joint_others[p].isVisible[i] = (isVisible == 0) ? 0 : 1;
+      //meta.joint_others[p].isVisible[i] = (isVisible == 0) ? 0 : 1;
+      meta.joint_others[p].isVisible[i] = isVisible;
       if(meta.joint_others[p].joints[i].x < 0 || meta.joint_others[p].joints[i].y < 0 ||
          meta.joint_others[p].joints[i].x >= meta.img_size.width || meta.joint_others[p].joints[i].y >= meta.img_size.height){
         meta.joint_others[p].isVisible[i] = 2; // 2 means cropped, 1 means occluded by still on image
