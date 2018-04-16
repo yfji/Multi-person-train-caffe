@@ -15,7 +15,7 @@ import numpy as np
 
 images_root=op.join(os.getcwd(),'../')
 annot_dir=os.getcwd()
-net_input_side=368
+net_input_side=320
 
 def parse_json():
     with open(op.join(annot_dir,'train.csv'),'r') as f:
@@ -26,7 +26,6 @@ def parse_json():
                 continue
             list_data=list(row)
             image_path=op.join(images_root,list_data[0])
-            category=list_data[1]
             keypoints=list_data[2:]
             image=cv2.imread(image_path)
             for kp_str in keypoints:
@@ -35,11 +34,12 @@ def parse_json():
                 y=int(keypoint[1])
                 visible=int(keypoint[2])
                 if visible==-1:
+                    print('not visible')
                     continue
                 color=(0,255,0)
                 if visible==0:
                     color=(0,0,255)
-                cv2.circle(image, (x,y), 3, (0,0,255), -1)
+                cv2.circle(image, (x,y), 3, color, -1)
     #            cv2.imshow('clothes',image)
     #            cv2.waitKey()
             cv2.imshow('clothes',image)
@@ -72,6 +72,8 @@ def csv2json():
             ltx=1e4;lty=1e4;rbx=0;rby=0
 
             joint_self=[]   #24*3
+            if keypoints[22]=='' or keypoints[23]=='':
+                print('invalid cell')
             for kp_str in keypoints:
                 keypoint=kp_str.split('_')
                 x=int(keypoint[0])
@@ -81,14 +83,16 @@ def csv2json():
                     visible=2
                 joint=[x,y,visible]
                 joint_self.append(joint)
+                if x<=0 or y<=0:
+                    continue
                 ltx=min(ltx,x)
                 lty=min(lty,y)
                 rbx=max(rbx,x)
                 rby=max(rby,y)
             center=[0.5*(ltx+rbx),0.5*(lty+rby)]
             item['objpos']=center
-            item['joint_self']=np.asarray(joint_self).transpose().tolist()   #3*24
-            item['scale_provided']=1.0*item['img_height']/net_input_side#align height
+            item['joint_self']=np.asarray(joint_self).tolist()   #24*3
+            item['scale_provided']=1.0*item['img_height']/net_input_side  #align height
             data.append(item)
     label=dict(root=data)
     with open('label_data.json','w') as f:
@@ -100,3 +104,4 @@ if __name__=='__main__':
     csv2json()
                 
    
+
