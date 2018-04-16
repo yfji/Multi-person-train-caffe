@@ -78,8 +78,8 @@ def writeLMDB(dataset, lmdb_path, validation=0):
         for i in range(len(scale_provided_binary)):
             meta_data[clidx][i] = ord(scale_provided_binary[i])
         clidx = clidx + 1
-        # (d) joint_self (3*16) (float) (3 line)
-        joints = np.asarray(data[idx]['joint_self']).tolist() # transpose to 3*16
+        # (d) joint_self (3*24) (float) (3 line)
+        joints = np.asarray(data[idx]['joint_self']).transpose().tolist() # transpose to 3*24
         for i in range(len(joints)):
             row_binary = float2bytes(joints[i])
             for j in range(len(row_binary)):
@@ -103,12 +103,13 @@ def writeLMDB(dataset, lmdb_path, validation=0):
           
 
 def float2bytes(floats):
-	if type(floats) is float:
-		floats = [floats]
-	if type(floats) is int:
-		floats=[float(floats)]
-	return struct.pack('%sf' % len(floats), *floats)
+    if type(floats) is float:
+        floats = [floats]
+    if type(floats) is int:
+        floats=[float(floats)]
+    return struct.pack('%sf' % len(floats), *floats)
  
 if __name__=='__main__':
 #    print(float2bytes([1.1,2.2]))
 	writeLMDB('FashionAI','../lmdb')
+
