@@ -85,12 +85,14 @@ def genHandJson():
             joint_self=np.asarray(hand_pts)
             joint_self[:,0]=np.maximum(0,joint_self[:,0]-entry['crop_x'])
             joint_self[:,1]=np.maximum(0,joint_self[:,1]-entry['crop_y'])
-            joint_self=joint_self.transpose().tolist()
+            joint_self[joint_self[:,2]==0,2]=2
+            
+            joint_self=joint_self.tolist() #21*3
             entry['joint_self']=joint_self
             data.append(entry)
-    with open('hand_label_crop.json','w') as f:
+    with open('hand_label_cropt.json','w') as f:
         label_data=dict(root=data)
-        f.write(json.dumps(label_data))
+        print(json.dumps(label_data))
     print('done')
 
 if __name__=='__main__':
