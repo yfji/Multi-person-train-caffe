@@ -13,12 +13,14 @@ import os
 import os.path as op
 import cv2
 
-use_bn=1
+use_bn=0
+caffe.set_mode_gpu()
+caffe.set_device(0)
 
 if use_bn:
-    net=caffe.Net('fashion_deploy_bn.prototxt','/home/yfji/benchmark/Keypoint/fashionAI_key_points_train_20180227/train/train_fashion/models_bn/fashion_iter_200000.caffemodel',caffe.TEST)
+    net=caffe.Net('fashion_deploy_bn.prototxt','/home/yfji/benchmark/Keypoint/fashionAI_key_points_train_20180227/train/train_fashion/models_bn/fashion_iter_280000.caffemodel',caffe.TEST)
 else:
-    net=caffe.Net('fashion_deploy.prototxt','/home/yfji/benchmark/Keypoint/fashionAI_key_points_train_20180227/train/train_fashion/models/fashion_iter_30000.caffemodel',caffe.TEST)
+    net=caffe.Net('fashion_deploy.prototxt','/home/yfji/benchmark/Keypoint/fashionAI_key_points_train_20180227/train/train_fashion/models/fashion_iter_90000.caffemodel',caffe.TEST)
 image_root=op.join(os.getcwd(), 'test')
 
 input_size=net.blobs[net.inputs[0]].data.shape[2]
@@ -133,7 +135,7 @@ def main():
     cnt=0
     random_order=np.random.permutation(np.arange(num_samples))
     for ix in range(num_samples):
-        if ix==1000:
+        if ix==5000:
             break
         row=rows[random_order[ix]]
         keypoints_det=run_model(row, net)
