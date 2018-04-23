@@ -481,8 +481,10 @@ message CPMTransformationParameter {
   optional uint32 np_in_lmdb = 35 [default = 16];
   optional bool transform_body_joint = 38 [default = true];
   optional bool upper_body = 41 [default = false];
-  optional bool hand = 44 [default = false];
-  optional string dataset = 47 [default = "COCO"];
+  optional float upper_crop_prob = 44 [default = 0.0];
+  optional bool hand = 47 [default = false];
+  optional string dataset = 50 [default = "COCO"];
+  optional uint32 sample_min_side = 53 [default = 128];
 }
 
 // Message that stores parameters shared by loss layers
@@ -621,7 +623,7 @@ message ConvolutionParameter {
   repeated uint32 stride = 6; // The stride; defaults to 1
   // Factor used to dilate the kernel, (implicitly) zero-filling the resulting
   // holes. (Kernel dilation is sometimes referred to by its use in the
-  // algorithme à trous from Holschneider et al. 1987.)
+  // algorithme 脿 trous from Holschneider et al. 1987.)
   repeated uint32 dilation = 18; // The dilation; defaults to 1
 
   // For 2D convolution only, the *_h and *_w versions may also be used to
