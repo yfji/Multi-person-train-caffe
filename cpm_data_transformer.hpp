@@ -195,6 +195,9 @@ class CPMDataTransformer {
   bool upper_body;
   string dataset;
   bool has_mask;
+  float upper_body_crop_prob;
+  bool too_small;
+  int sample_min_side;
 
   bool is_table_set;
   vector<vector<float> > aug_degs;
