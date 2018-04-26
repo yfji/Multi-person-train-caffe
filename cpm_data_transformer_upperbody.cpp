@@ -1428,8 +1428,6 @@ void CPMDataTransformer<Dtype>::generateLabelMap(Dtype* transformed_label, Mat& 
         }
       }
     }
-    //int mid_1[13] = {2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16};
-    //int mid_2[13] = {3, 4, 5, 17, 6, 7, 8, 18, 1, 15, 16, 17, 18};
     int mid_1[13] = {2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  9, 10};
     int mid_2[13] = {3, 4, 5, 11, 6, 7, 8, 12, 1, 9, 10, 11, 12};
     int thre = 1;
@@ -1648,7 +1646,7 @@ void CPMDataTransformer<Dtype>::generateLabelMap(Dtype* transformed_label, Mat& 
   //visualize
   if(1 && param_.visualize()){
     Mat label_map;
-    for(int i = label_channels-1; i < label_channels; i++){      
+    for(int i = label_start; i < label_channels; i++){      
       label_map = Mat::zeros(grid_y, grid_x, CV_8UC1);
       //int MPI_index = MPI_to_ours[i];
       //Point2f center = meta.joint_self.joints[MPI_index];
