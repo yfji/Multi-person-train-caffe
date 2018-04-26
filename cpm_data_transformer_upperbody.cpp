@@ -300,8 +300,8 @@ void CPMDataTransformer<Dtype>::TransformJoints(Joints& j) {
   else if(np==62){
     //foottop
     //not implemented
-    int FOOTTOP_to_ours_1[20] = {1,6, 7,9,11, 6,8,10, 13,15,17, 12,14,16, 3,2,5,4, 18,19};
-    int FOOTTOP_to_ours_2[20] = {1,7, 7,9,11, 6,8,10, 13,15,17, 12,14,16, 3,2,5,4, 18,19};
+    int FOOTTOP_to_ours_1[20] = {1,6, 7,9,11, 6,8,10, 13,15,17, 12,14,16, 3,2,5,4, 19,18};
+    int FOOTTOP_to_ours_2[20] = {1,7, 7,9,11, 6,8,10, 13,15,17, 12,14,16, 3,2,5,4, 19,18};
     jo.joints.resize(np);
     jo.isVisible.resize(np);
     //visible 0,1,2 are labelled in clothes dataset
@@ -1183,6 +1183,48 @@ void CPMDataTransformer<Dtype>::swapLeftRight(Joints& j) {
       j.isVisible[li] = temp_v;
     }
   }
+  else if(np==38){
+    int right[5]={10,12,6,7,8};
+    int left[5]={9,11,3,4,5};
+    for(int i=0;i<5;++i){
+      int ri = right[i] - 1;
+      int li = left[i] - 1;
+      Point2f temp = j.joints[ri];
+      j.joints[ri] = j.joints[li];
+      j.joints[li] = temp;
+      int temp_v = j.isVisible[ri];
+      j.isVisible[ri] = j.isVisible[li];
+      j.isVisible[li] = temp_v;
+    }
+  }
+  else if(np==24){
+    int right[11]={2,5,7,9,12,13,15,17,19,23,24};
+    int left[11]={1,4,6,8,10,11,14,16,18,21,22};
+    for(int i=0;i<11;++i){
+      int ri = right[i] - 1;
+      int li = left[i] - 1;
+      Point2f temp = j.joints[ri];
+      j.joints[ri] = j.joints[li];
+      j.joints[li] = temp;
+      int temp_v = j.isVisible[ri];
+      j.isVisible[ri] = j.isVisible[li];
+      j.isVisible[li] = temp_v;
+    }
+  }
+  else if(np==62){
+    int right[9] = {3,4,5, 9,10,11,15,17,20}; 
+    int left[9] =  {6,7,8,12,13,14,16,18,19}; 
+     for(int i=0; i<9; i++){    
+      int ri = right[i] - 1;
+      int li = left[i] - 1;
+      Point2f temp = j.joints[ri];
+      j.joints[ri] = j.joints[li];
+      j.joints[li] = temp;
+      int temp_v = j.isVisible[ri];
+      j.isVisible[ri] = j.isVisible[li];
+      j.isVisible[li] = temp_v;
+    }
+  }
 }
 
 template<typename Dtype>
@@ -1502,7 +1544,7 @@ void CPMDataTransformer<Dtype>::generateLabelMap(Dtype* transformed_label, Mat& 
       }
     }
     int mid_1[21] = {2, 9,  10, 2,  12, 13, 2, 3, 4, 3,  2, 6, 7, 6,  2, 1,  1,  15, 16, 11,14};
-    int mid_2[21] = {9, 10, 11, 12, 13, 14, 3, 4, 5, 17, 6, 7, 8, 18, 1, 15, 16, 17, 18, 19,20};
+    int mid_2[21] = {9, 10, 11, 12, 13, 14, 3, 4, 5, 17, 6, 7, 8, 18, 1, 15, 16, 17, 18, 20,19};
     int thre = 1;
 
     for(int i=0;i<21;i++){
