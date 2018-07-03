@@ -10,9 +10,11 @@ import numpy as np
 from collections import deque
 import time
 
-maxQueueLen=5
+maxQueueLen=1
+num_gpus=1
 stopFlag=False
 LOOP=10
+datum_id=0
 
 class Datum(object):
     def __init__(self):
@@ -20,8 +22,9 @@ class Datum(object):
         self.n_ID=0
         self.empty=True
         
-    def feedData(self, data):
+    def feedData(self, data, n_id):
         self.data=data
+        self.n_ID=n_id
         self.empty=False
     
     def getData(self):
@@ -36,8 +39,8 @@ class Datum(object):
         datum.empty=self.empty
 
 class Queue(object):
-    def __init__(self, name=''):
-        self.que=deque(maxlen=maxQueueLen)
+    def __init__(self, name='', queueLen=0):
+        self.que=deque(maxlen=queueLen)
         self.lock=threading.Lock()
         self.pushFlag=True
         self.popFlag=True
@@ -134,15 +137,44 @@ class Queue(object):
         self.popFlag=False
         self.que.clear()
 
+class ThreadManager(object):
+    def __init__(self, threads):
+        self.threads=threads
+        self.extras=[]
+        
+    def start(self):
+        for t in self.extras:
+            t.start()
+        for i in range(num_gpus):
+            for t in self.threads[i]:
+                t.start()
+        for t in self.extras:
+            t.join()
+        for i in range(num_gpus):
+            for t in self.threads[i]:
+                t.join()
+                
+    def addExtras(self, *args):
+        for t in args:
+            self.extras.append(t)
+            
+    def stop(self):
+        for t in self.extras:
+            t.stopAndJoin()
+        for i in range(num_gpus):
+            for t in threads:
+                t.stopAndJoin()
+        
 class Thread(object):
     def __init__(self, thread_id, sub_threads):
         self.threadId=thread_id
         self.subThreads=sub_threads
         self.thread=None
         self.loop=0
+        self.isRunning=True
         
     def threadFunction(self):
-        while not stopFlag and self.loop<LOOP:
+        while self.isRunning and self.loop<LOOP:
             for t in self.subThreads:
                 t.work()
             self.loop+=1
@@ -152,8 +184,7 @@ class Thread(object):
         self.thread.start()
         
     def stop(self):
-        global stopFlag
-        stopFlag=True
+        self.isRunning=False
         
     def join(self):
         self.thread.join()
@@ -227,8 +258,10 @@ class Producer(Worker):
         super(Producer, self).__init__()
     
     def workProducer(self):
+        global datum_id
         datum=Datum()
-        datum.feedData(np.ones((10,10),dtype=np.float32))
+        datum.feedData(np.ones((10,10), dtype=np.float32), datum_id)
+        datum_id+=1
         return datum
         
     def work(self, datum):
@@ -268,23 +301,28 @@ if __name__=='__main__':
     gpu_ids=[0]
     threads=[]
     
-    for i in range(len(gpu_ids)):
-        producer=Producer()
-        transferer=Transferer()
-        consumer=Consumer()
-        
-        queueIn=Queue(name='queueIn')
-        queueOut=Queue(name='queueOut')
-        
-        sub_prod=SubThreadOut(queueOut, [producer])
-        sub_trans=SubThreadInOut(queueOut, queueIn, [transferer])
-        sub_cons=SubThreadIn(queueIn, [consumer])
-        
-        m_thread=Thread(i, [sub_prod, sub_trans, sub_cons])
-        m_thread.start()
-        threads.append(m_thread)
+    publicQueueIn=Queue(name='queueIn', queueLen=num_gpus*maxQueueLen)
+    publicQueueOut=Queue(name='queueOut', queueLen=num_gpus*maxQueueLen)
     
+    
+    producer=Producer()
+    consumer=Consumer()
+    
+    sub_prod=SubThreadOut(publicQueueIn, [producer])
+    sub_cons=SubThreadIn(publicQueueIn, [consumer])
+    thread_prod=Thread(0, [sub_prod])
+    thread_cons=Thread(2+num_gpus, [sub_cons])
+    
+    all_threads=[]
     for i in range(len(gpu_ids)):
-        threads[i].stopAndJoin()
+        transferer=Transferer()        
+        sub_trans=SubThreadInOut(publicQueueOut, publicQueueIn, [transferer])
+        thread_trans=Thread(1+i*num_gpus, [sub_trans])
+        m_threads=[thread_cons]
+        all_threads.append(m_threads)
+    
+    manager=ThreadManager(all_threads)
+    manager.addExtras(thread_prod, thread_cons)
+    manager.start()
         
     print('Finish')
