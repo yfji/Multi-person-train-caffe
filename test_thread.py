@@ -281,10 +281,18 @@ class Transferer(Worker):
 class Consumer(Worker):
     def __init__(self):
         super(Consumer, self).__init__()
+        self.dataPool=[]
+        self.poolsize=0
     
     def workConsumer(self, datum):
-        data=datum.data
-        print('Datum info (h,w,mean): (%d,%d, %f)'%(data.shape[0],data.shape[1],data.mean()))
+        self.dataPool.append(datum)
+        if len(self.dataPool)==self.poolsize:
+            sorted(self.dataPool, key=lambda x:x.n_ID)
+            self.dataPool=[]
+        for d in self.dataPool:
+            data=d.data
+            print('Datum info (id: h,w,mean,id): (%d,%d,%d,%f)'%(d.n_ID, data.shape[0],data.shape[1],data.mean()))
+
         
     def work(self, datum):
         self.workConsumer(datum)
@@ -307,6 +315,7 @@ if __name__=='__main__':
     
     producer=Producer()
     consumer=Consumer()
+    consumer.poolsize=num_gpus*maxQueueLen
     
     sub_prod=SubThreadOut(publicQueueIn, [producer])
     sub_cons=SubThreadIn(publicQueueIn, [consumer])
