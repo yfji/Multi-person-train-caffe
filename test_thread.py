@@ -11,10 +11,13 @@ from collections import deque
 import time
 
 maxQueueLen=1
-num_gpus=1
+num_gpus=2
 stopFlag=False
+time_thresh=2
 LOOP=10
 datum_id=0
+Data_size=200
+time_delay=0.2
 
 class Datum(object):
     def __init__(self):
@@ -53,6 +56,7 @@ class Queue(object):
                 return False
             else:
                 self.que.append(datum)
+#                print('Queue %s try push success'%self.name)
                 return True
         except:
             return False
@@ -65,7 +69,8 @@ class Queue(object):
             if len(self.que)==0:
                 return Datum()
             else:
-                datum=self.que[len(self.que)-1]
+                datum=self.que.popleft()
+#                print('Queue %s try pop success'%self.name)
                 return datum
         except:
             return None
@@ -76,6 +81,7 @@ class Queue(object):
         try:
             self.lock.acquire()
             self.que.append(datum)
+#            print('Queue %s force push success'%self.name)
             return True
         except:
             return False
@@ -92,11 +98,12 @@ class Queue(object):
                 self.lock.release()
                 time.sleep(1e-3)
                 end=time.time()
-                if end-start>=5:
+                if end-start>=time_thresh:
                     return False
             if not self.pushFlag:
                 return False
             self.que.append(datum)
+#            print('Queue %s wait push success'%self.name)
             return True
         except:
             return False
@@ -114,11 +121,12 @@ class Queue(object):
                 self.lock.release()
                 time.sleep(1e-3)
                 end=time.time()
-                if end-start>=5:
+                if end-start>=time_thresh:
                     return None
             if not self.popFlag:
                 return None
-            datum=self.que[len(self.que)-1]
+            datum=self.que.popleft()
+#            print('Queue %s wait pop success'%self.name)
             return datum
         except:
             return None
@@ -139,19 +147,19 @@ class Queue(object):
 
 class ThreadManager(object):
     def __init__(self, threads):
-        self.threads=threads
+        self.gpuThreads=threads
         self.extras=[]
         
     def start(self):
         for t in self.extras:
             t.start()
         for i in range(num_gpus):
-            for t in self.threads[i]:
+            for t in self.gpuThreads[i]:
                 t.start()
         for t in self.extras:
             t.join()
         for i in range(num_gpus):
-            for t in self.threads[i]:
+            for t in self.gpuThreads[i]:
                 t.join()
                 
     def addExtras(self, *args):
@@ -164,23 +172,28 @@ class ThreadManager(object):
         for i in range(num_gpus):
             for t in threads:
                 t.stopAndJoin()
-        
-class Thread(object):
+
+class Thread(threading.Thread):
     def __init__(self, thread_id, sub_threads):
         self.threadId=thread_id
         self.subThreads=sub_threads
         self.thread=None
         self.loop=0
         self.isRunning=True
+        self.isRunningSuccess=True
+        self.thread=threading.Thread(target=self.threadFunction)
         
     def threadFunction(self):
-        while self.isRunning and self.loop<LOOP:
+        global stopFlag
+        while self.isRunning and not stopFlag:
             for t in self.subThreads:
-                t.work()
-            self.loop+=1
+                self.isRunningSuccess&=t.work()
+#            if self.isRunningSuccess:
+#                self.loop+=1
+#        if self.loop==LOOP:
+#            stopFlag=True
 
     def start(self):
-        self.thread=threading.Thread(target=self.threadFunction())
         self.thread.start()
         
     def stop(self):
@@ -214,6 +227,10 @@ class SubThreadOut(SubThread):
         self.workTWorkers(datum)
         if not self.queueOut.waitAndPush(datum):
             print('Queue %s Time out'%self.queueOut.name)
+            return False
+        else:
+            return True
+            
         
 class SubThreadIn(SubThread):
     def __init__(self, queueIn, workers):
@@ -223,11 +240,15 @@ class SubThreadIn(SubThread):
     def work(self):
         datum=self.queueIn.tryPop()
         if datum is None:
-            print('Queue raise exception')
+            print('Queue %s raise exception'%self.queueIn.name)
+            return False
         elif datum.empty:
-            print('Queue empty')
+#            print('Queue %s empty'%self.queueIn.name)
+            return False
         else:
+#            print('Consumer work datum')
             self.workTWorkers(datum)
+            return True
         
 class SubThreadInOut(SubThread):
     def __init__(self, queueIn, queueOut, workers):
@@ -238,13 +259,19 @@ class SubThreadInOut(SubThread):
     def work(self):
         datum=self.queueIn.tryPop()
         if datum is None:
-            print('Queue raise exception')
+            print('Queue %s raise exception'%self.queueIn.name)
+            return False
         elif datum.empty:
-            print('Queue empty')
+#            print('Queue %s empty'%self.queueIn.name)
+            return False
         else:
             self.workTWorkers(datum)
             if not self.queueOut.waitAndPush(datum):
                 print('Queue %s Time out'%self.queueOut.name)
+                return False
+            else:
+#                print('Transferer work datum')
+                return True
     
 class Worker(object):
     def __init__(self):
@@ -277,6 +304,7 @@ class Transferer(Worker):
         
     def work(self, datum):
         self.workTransferer(datum)
+        time.sleep(time_delay)
 
 class Consumer(Worker):
     def __init__(self):
@@ -285,14 +313,16 @@ class Consumer(Worker):
         self.poolsize=0
     
     def workConsumer(self, datum):
+        global Data_size, stopFlag
         self.dataPool.append(datum)
         if len(self.dataPool)==self.poolsize:
             sorted(self.dataPool, key=lambda x:x.n_ID)
+            for d in self.dataPool:
+                if d.n_ID==Data_size-1:
+                    stopFlag=True
+            d=self.dataPool[len(self.dataPool)-1]
+            print('Datum info (id: h,w,mean,id): (%d,%d,%d,%f)'%(d.n_ID, d.data.shape[0],d.data.shape[1],d.data.mean()))
             self.dataPool=[]
-        for d in self.dataPool:
-            data=d.data
-            print('Datum info (id: h,w,mean,id): (%d,%d,%d,%f)'%(d.n_ID, data.shape[0],data.shape[1],data.mean()))
-
         
     def work(self, datum):
         self.workConsumer(datum)
@@ -317,21 +347,24 @@ if __name__=='__main__':
     consumer=Consumer()
     consumer.poolsize=num_gpus*maxQueueLen
     
-    sub_prod=SubThreadOut(publicQueueIn, [producer])
+    sub_prod=SubThreadOut(publicQueueOut, [producer])
     sub_cons=SubThreadIn(publicQueueIn, [consumer])
     thread_prod=Thread(0, [sub_prod])
-    thread_cons=Thread(2+num_gpus, [sub_cons])
+    thread_cons=Thread(2, [sub_cons])
     
     all_threads=[]
-    for i in range(len(gpu_ids)):
+    for i in range(num_gpus):
         transferer=Transferer()        
         sub_trans=SubThreadInOut(publicQueueOut, publicQueueIn, [transferer])
         thread_trans=Thread(1+i*num_gpus, [sub_trans])
-        m_threads=[thread_cons]
+        m_threads=[thread_trans]
         all_threads.append(m_threads)
     
     manager=ThreadManager(all_threads)
     manager.addExtras(thread_prod, thread_cons)
+    
+    start=time.time()
     manager.start()
+    duration=time.time()-start
         
-    print('Finish')
+    print('Finish using %f seconds on %d GPUs'%(duration, num_gpus))
