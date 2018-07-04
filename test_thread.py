@@ -170,7 +170,7 @@ class ThreadManager(object):
         for t in self.extras:
             t.stopAndJoin()
         for i in range(num_gpus):
-            for t in threads:
+            for t in self.gpuThreads[i]:
                 t.stopAndJoin()
 
 class Thread(object):
