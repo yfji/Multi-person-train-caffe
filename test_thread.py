@@ -11,8 +11,8 @@ from collections import deque
 import time
 
 maxQueueLen=1
-num_gpus=2
-stopFlag=False
+num_gpus=5
+isRunning=True
 time_thresh=2
 LOOP=10
 datum_id=0
@@ -173,25 +173,24 @@ class ThreadManager(object):
             for t in threads:
                 t.stopAndJoin()
 
-class Thread(threading.Thread):
+class Thread(object):
     def __init__(self, thread_id, sub_threads):
         self.threadId=thread_id
         self.subThreads=sub_threads
         self.thread=None
         self.loop=0
-        self.isRunning=True
         self.isRunningSuccess=True
         self.thread=threading.Thread(target=self.threadFunction)
         
     def threadFunction(self):
-        global stopFlag
-        while self.isRunning and not stopFlag:
+        global isRunning
+        while isRunning:
             for t in self.subThreads:
                 self.isRunningSuccess&=t.work()
 #            if self.isRunningSuccess:
 #                self.loop+=1
 #        if self.loop==LOOP:
-#            stopFlag=True
+#            isRunning=False
 
     def start(self):
         self.thread.start()
@@ -313,13 +312,13 @@ class Consumer(Worker):
         self.poolsize=0
     
     def workConsumer(self, datum):
-        global Data_size, stopFlag
+        global Data_size, isRunning
         self.dataPool.append(datum)
         if len(self.dataPool)==self.poolsize:
             sorted(self.dataPool, key=lambda x:x.n_ID)
             for d in self.dataPool:
                 if d.n_ID==Data_size-1:
-                    stopFlag=True
+                    isRunning=False
             d=self.dataPool[len(self.dataPool)-1]
             print('Datum info (id: h,w,mean,id): (%d,%d,%d,%f)'%(d.n_ID, d.data.shape[0],d.data.shape[1],d.data.mean()))
             self.dataPool=[]
